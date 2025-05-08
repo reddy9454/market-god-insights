@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { StockData, calculateSMA, calculateRSI, calculateMACD } from '@/utils/analysisUtils';
+import { StockData } from '@/utils/dataHelpers';
+import { calculateSMA, calculateRSI, calculateMACD } from '@/utils/analysisUtils';
 import StockChart from '../common/StockChart';
 import AnalysisCard from '../common/AnalysisCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -75,21 +76,25 @@ const TechnicalAnalysis: React.FC<TechnicalAnalysisProps> = ({
               <p className="font-medium mb-2">Moving Average Analysis:</p>
               <ul className="list-disc list-inside space-y-1">
                 <li>
-                  Current price ({stockData.slice(-1)[0]?.close.toFixed(2)}) is 
-                  {stockData.slice(-1)[0]?.close > sma20.slice(-1)[0] 
-                    ? ' above ' 
-                    : ' below '}
-                  20-day SMA ({sma20.slice(-1)[0].toFixed(2)})
+                  Current price ({stockData.slice(-1)[0]?.close?.toFixed(2) || 'N/A'}) is 
+                  {stockData.slice(-1)[0]?.close && sma20.slice(-1)[0] ? 
+                    (stockData.slice(-1)[0]?.close > sma20.slice(-1)[0] ? ' above ' : ' below ') : 
+                    ' compared to '}
+                  20-day SMA ({sma20.slice(-1)[0]?.toFixed(2) || 'N/A'})
                 </li>
                 <li>
-                  {sma20.slice(-1)[0] > sma50.slice(-1)[0]
-                    ? 'Short-term trend is bullish (20-day SMA above 50-day)'
-                    : 'Short-term trend is bearish (20-day SMA below 50-day)'}
+                  {sma20.slice(-1)[0] && sma50.slice(-1)[0] ? 
+                    (sma20.slice(-1)[0] > sma50.slice(-1)[0] ?
+                      'Short-term trend is bullish (20-day SMA above 50-day)' :
+                      'Short-term trend is bearish (20-day SMA below 50-day)') :
+                    'Short-term trend data unavailable'}
                 </li>
                 <li>
-                  {sma50.slice(-1)[0] > sma200.slice(-1)[0]
-                    ? 'Long-term trend is bullish (50-day SMA above 200-day)'
-                    : 'Long-term trend is bearish (50-day SMA below 200-day)'}
+                  {sma50.slice(-1)[0] && sma200.slice(-1)[0] ?
+                    (sma50.slice(-1)[0] > sma200.slice(-1)[0] ?
+                      'Long-term trend is bullish (50-day SMA above 200-day)' :
+                      'Long-term trend is bearish (50-day SMA below 200-day)') :
+                    'Long-term trend data unavailable'}
                 </li>
               </ul>
             </div>
@@ -122,13 +127,15 @@ const TechnicalAnalysis: React.FC<TechnicalAnalysisProps> = ({
             
             <div className="mt-4 text-sm text-gray-700">
               <p className="font-medium mb-2">RSI Analysis:</p>
-              <p>Current RSI: <span className="font-mono">{rsiValues.slice(-1)[0].toFixed(2)}</span></p>
+              <p>Current RSI: <span className="font-mono">{rsiValues.slice(-1)[0]?.toFixed(2) || 'N/A'}</span></p>
               <p>
-                {rsiValues.slice(-1)[0] > 70
-                  ? 'The stock is currently overbought, suggesting a potential pullback.'
-                  : rsiValues.slice(-1)[0] < 30
-                  ? 'The stock is currently oversold, suggesting a potential bounce.'
-                  : 'The stock is currently in a neutral RSI range.'}
+                {rsiValues.slice(-1)[0] ?
+                  (rsiValues.slice(-1)[0] > 70
+                    ? 'The stock is currently overbought, suggesting a potential pullback.'
+                    : rsiValues.slice(-1)[0] < 30
+                    ? 'The stock is currently oversold, suggesting a potential bounce.'
+                    : 'The stock is currently in a neutral RSI range.')
+                  : 'RSI data unavailable for analysis.'}
               </p>
             </div>
           </AnalysisCard>
@@ -153,18 +160,20 @@ const TechnicalAnalysis: React.FC<TechnicalAnalysisProps> = ({
               <p className="font-medium mb-2">MACD Analysis:</p>
               <ul className="list-disc list-inside space-y-1">
                 <li>
-                  MACD Line: <span className="font-mono">{macd.slice(-1)[0].toFixed(2)}</span>
+                  MACD Line: <span className="font-mono">{macd.slice(-1)[0]?.toFixed(2) || 'N/A'}</span>
                 </li>
                 <li>
-                  Signal Line: <span className="font-mono">{signal.slice(-1)[0].toFixed(2)}</span>
+                  Signal Line: <span className="font-mono">{signal.slice(-1)[0]?.toFixed(2) || 'N/A'}</span>
                 </li>
                 <li>
-                  Histogram: <span className="font-mono">{histogram.slice(-1)[0].toFixed(2)}</span>
+                  Histogram: <span className="font-mono">{histogram.slice(-1)[0]?.toFixed(2) || 'N/A'}</span>
                 </li>
                 <li>
-                  {macd.slice(-1)[0] > signal.slice(-1)[0]
-                    ? 'MACD above signal line suggests bullish momentum'
-                    : 'MACD below signal line suggests bearish momentum'}
+                  {macd.slice(-1)[0] && signal.slice(-1)[0] ?
+                    (macd.slice(-1)[0] > signal.slice(-1)[0]
+                      ? 'MACD above signal line suggests bullish momentum'
+                      : 'MACD below signal line suggests bearish momentum')
+                    : 'MACD/Signal comparison unavailable'}
                 </li>
               </ul>
             </div>

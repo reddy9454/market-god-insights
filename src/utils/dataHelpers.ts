@@ -6,7 +6,7 @@ export interface StockData {
   open?: number;
   high?: number;
   low?: number;
-  close?: number;
+  close?: number;  // Making close optional to fix type errors
   volume?: number;
   sentiment?: number;
   confidence?: number;

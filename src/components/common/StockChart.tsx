@@ -12,7 +12,7 @@ import {
   AreaChart,
   Area
 } from 'recharts';
-import { StockData } from '@/utils/analysisUtils';
+import { StockData } from '@/utils/dataHelpers';
 
 interface StockChartProps {
   data: StockData[];
@@ -21,9 +21,13 @@ interface StockChartProps {
     values: number[];
     color: string;
   }[];
-  type?: 'line' | 'area';
+  type?: 'line' | 'area' | 'candle' | 'bar';  // Updated to include 'candle' and 'bar'
   height?: number | string;
   showVolume?: boolean;
+  overlay?: {
+    upperBand?: { date: string; value: number }[];
+    lowerBand?: { date: string; value: number }[];
+  };
 }
 
 const StockChart: React.FC<StockChartProps> = ({
@@ -32,6 +36,7 @@ const StockChart: React.FC<StockChartProps> = ({
   type = 'line',
   height = 400,
   showVolume = false,
+  overlay
 }) => {
   // Prepare data with indicators
   const chartData = data.map((point, index) => {
@@ -45,13 +50,34 @@ const StockChart: React.FC<StockChartProps> = ({
       }
     });
     
+    // Add overlay data like Bollinger Bands if available
+    if (overlay) {
+      if (overlay.upperBand) {
+        const upperBandPoint = overlay.upperBand.find(b => b.date === point.date);
+        if (upperBandPoint) {
+          result.upperBand = upperBandPoint.value;
+        }
+      }
+      
+      if (overlay.lowerBand) {
+        const lowerBandPoint = overlay.lowerBand.find(b => b.date === point.date);
+        if (lowerBandPoint) {
+          result.lowerBand = lowerBandPoint.value;
+        }
+      }
+    }
+    
     return result;
   });
+  
+  // Since we don't have actual candlestick or bar chart implementations,
+  // we'll fallback to line or area for those types
+  const effectiveType = type === 'candle' || type === 'bar' ? 'line' : type;
   
   return (
     <div className="w-full bg-white p-4 rounded-lg shadow-sm">
       <ResponsiveContainer width="100%" height={height}>
-        {type === 'line' ? (
+        {effectiveType === 'line' ? (
           <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis 
@@ -89,6 +115,29 @@ const StockChart: React.FC<StockChartProps> = ({
               strokeWidth={2} 
               name="Price"
             />
+            
+            {/* Add Bollinger Bands if available */}
+            {overlay && overlay.upperBand && (
+              <Line
+                type="monotone"
+                dataKey="upperBand"
+                stroke="#22c55e"
+                dot={false}
+                strokeDasharray="3 3"
+                name="Upper Band"
+              />
+            )}
+            
+            {overlay && overlay.lowerBand && (
+              <Line
+                type="monotone"
+                dataKey="lowerBand"
+                stroke="#ef4444"
+                dot={false}
+                strokeDasharray="3 3"
+                name="Lower Band"
+              />
+            )}
             
             {indicators.map((indicator, i) => (
               <Line
@@ -150,6 +199,29 @@ const StockChart: React.FC<StockChartProps> = ({
                 fillOpacity={0.1}
                 name="Volume"
                 yAxisId={1}
+              />
+            )}
+            
+            {/* Add Bollinger Bands if available */}
+            {overlay && overlay.upperBand && (
+              <Line
+                type="monotone"
+                dataKey="upperBand"
+                stroke="#22c55e"
+                dot={false}
+                strokeDasharray="3 3"
+                name="Upper Band"
+              />
+            )}
+            
+            {overlay && overlay.lowerBand && (
+              <Line
+                type="monotone"
+                dataKey="lowerBand"
+                stroke="#ef4444"
+                dot={false}
+                strokeDasharray="3 3"
+                name="Lower Band"
               />
             )}
             

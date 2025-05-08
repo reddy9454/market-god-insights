@@ -11,35 +11,17 @@ import { Save, Share, FileDown, AlertTriangle } from 'lucide-react';
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { generateRecommendation } from '@/utils/analysisUtils';
-import { ensureValidData, formatNumber, calculatePercentageChange } from '@/utils/dataHelpers';
+import { ensureValidData, formatNumber, calculatePercentageChange, StockData } from '@/utils/dataHelpers';
 import { calculateBollingerBands } from '@/utils/technicalAnalysis';
+import { FundamentalData } from '@/utils/fundamentalAnalysis';
 
 interface AnalysisDashboardProps {
   stockData: {
     stockName: string;
     ticker: string;
     dataType?: 'marketData' | 'documentAnalysis';
-    data: {
-      date: string;
-      close?: number;
-      open?: number;
-      high?: number;
-      low?: number;
-      volume?: number;
-      sentiment?: number;
-      confidence?: number;
-      keywords?: string[];
-    }[];
-    fundamentalData?: {
-      pe: number;
-      eps: number;
-      roe: number;
-      debtToEquity: number;
-      currentRatio: number;
-      quickRatio: number;
-      profitMargin: number;
-      dividendYield: number;
-    };
+    data: StockData[];
+    fundamentalData?: FundamentalData;
   };
 }
 
@@ -294,7 +276,10 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ stockData }) => {
       {/* Insights Dashboard */}
       <div className="mb-6">
         <InsightsDashboard
-          stockData={stockData}
+          stockData={{
+            data: validatedStockData,
+            dataType: stockData.dataType
+          }}
           insights={insights}
         />
       </div>

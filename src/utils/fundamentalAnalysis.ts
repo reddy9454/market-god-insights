@@ -1,6 +1,5 @@
 
 // Fundamental Analysis Utilities
-
 export interface FundamentalData {
   pe: number;
   eps: number;

@@ -1,6 +1,15 @@
 
+// Import all necessary types from their respective modules
 import { StockData } from './dataHelpers';
 import { FundamentalData } from './fundamentalAnalysis';
+
+// Re-export the interfaces explicitly so they can be imported from analysisUtils
+export type { StockData } from './dataHelpers';
+export type { FundamentalData } from './fundamentalAnalysis';
+
+// Re-export the functions that are needed from other modules
+export { calculateSMA, calculateRSI, calculateMACD, calculateBollingerBands } from './technicalAnalysis';
+export { calculateFundamentalScores } from './fundamentalAnalysis';
 
 // Investment recommendation engine
 export const generateRecommendation = (
