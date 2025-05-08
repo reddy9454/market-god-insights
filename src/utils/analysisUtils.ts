@@ -1,4 +1,3 @@
-
 // Mock utility functions for stock analysis
 // In a real application, these would contain actual analysis logic
 
@@ -22,12 +21,24 @@ export const calculateSMA = (data: StockData[], period: number): number[] => {
   // Simple Moving Average calculation
   const sma: number[] = [];
   
+  if (!data || data.length < period) {
+    return sma;
+  }
+  
   for (let i = period - 1; i < data.length; i++) {
     let sum = 0;
+    let validPoints = 0;
+    
     for (let j = 0; j < period; j++) {
-      sum += data[i - j].close;
+      if (data[i - j] && typeof data[i - j].close === 'number') {
+        sum += data[i - j].close;
+        validPoints++;
+      }
     }
-    sma.push(parseFloat((sum / period).toFixed(2)));
+    
+    if (validPoints > 0) {
+      sma.push(parseFloat((sum / validPoints).toFixed(2)));
+    }
   }
   
   return sma;
@@ -38,15 +49,26 @@ export const calculateRSI = (data: StockData[], period: number = 14): number[] =
   const rsi: number[] = [];
   const changes: number[] = [];
   
+  if (!data || data.length <= period) {
+    return rsi;
+  }
+  
   // Calculate price changes
   for (let i = 1; i < data.length; i++) {
-    changes.push(data[i].close - data[i - 1].close);
+    if (data[i] && data[i-1] && 
+        typeof data[i].close === 'number' && 
+        typeof data[i-1].close === 'number') {
+      changes.push(data[i].close - data[i - 1].close);
+    } else {
+      changes.push(0); // Default for invalid data
+    }
   }
   
   // Calculate RSI for each point after the period
   for (let i = period; i <= changes.length; i++) {
-    const gains = changes.slice(i - period, i).filter(change => change > 0);
-    const losses = changes.slice(i - period, i).filter(change => change < 0).map(loss => Math.abs(loss));
+    const changesSlice = changes.slice(i - period, i);
+    const gains = changesSlice.filter(change => change > 0);
+    const losses = changesSlice.filter(change => change < 0).map(loss => Math.abs(loss));
     
     const avgGain = gains.reduce((sum, gain) => sum + gain, 0) / period;
     const avgLoss = losses.reduce((sum, loss) => sum + loss, 0) / period;
@@ -220,99 +242,135 @@ export const generateRecommendation = (
   negativePoints: string[];
   summary: string;
 } => {
-  // Calculate scores
-  const { overallScore } = calculateFundamentalScores(fundamentalData);
-  
-  // Calculate recent price trend (last 20 days)
-  const recentData = technicalData.slice(-20);
-  const priceChange = (recentData[recentData.length-1].close / recentData[0].close - 1) * 100;
-  
-  // Mock RSI for recent period
-  const rsi = calculateRSI(technicalData).slice(-1)[0];
-  
-  // Generate recommendation based on scores and technical indicators
-  let recommendation: 'STRONG BUY' | 'BUY' | 'HOLD' | 'SELL' | 'STRONG SELL' = 'HOLD';
-  let confidence = 0.5;
-  const positivePoints: string[] = [];
-  const negativePoints: string[] = [];
-  
-  // Fundamental analysis factors
-  if (overallScore > 7) {
-    positivePoints.push("Strong fundamental indicators");
-    confidence += 0.1;
-  } else if (overallScore > 5) {
-    positivePoints.push("Decent fundamental health");
-    confidence += 0.05;
-  } else if (overallScore < 4) {
-    negativePoints.push("Weak fundamental indicators");
-    confidence -= 0.1;
+  // Check for valid input data
+  if (!technicalData || technicalData.length === 0 || !fundamentalData) {
+    return {
+      recommendation: 'HOLD',
+      confidence: 0.5,
+      positivePoints: [],
+      negativePoints: ['Insufficient data for analysis'],
+      summary: 'Unable to analyze due to insufficient data.'
+    };
   }
-  
-  if (fundamentalData.pe < 15 && fundamentalData.pe > 0) {
-    positivePoints.push(`Attractive P/E ratio of ${fundamentalData.pe}`);
-    confidence += 0.05;
-  } else if (fundamentalData.pe > 30) {
-    negativePoints.push(`High P/E ratio of ${fundamentalData.pe}`);
-    confidence -= 0.05;
+
+  try {
+    // Calculate scores
+    const { overallScore } = calculateFundamentalScores(fundamentalData);
+    
+    // Calculate recent price trend (last 20 days or less if not enough data)
+    const dataLength = technicalData.length;
+    const periodLength = Math.min(20, dataLength);
+    const recentData = technicalData.slice(-periodLength);
+    
+    // Safely calculate price change with checks for undefined/null values
+    let priceChange = 0;
+    if (recentData.length >= 2 && 
+        typeof recentData[recentData.length-1]?.close === 'number' && 
+        typeof recentData[0]?.close === 'number' && 
+        recentData[0].close !== 0) {
+      priceChange = ((recentData[recentData.length-1].close / recentData[0].close) - 1) * 100;
+    }
+    
+    // Safely calculate RSI
+    let rsi = 50; // default neutral value
+    const rsiValues = calculateRSI(technicalData);
+    if (rsiValues.length > 0) {
+      rsi = rsiValues[rsiValues.length - 1];
+    }
+    
+    // Generate recommendation based on scores and technical indicators
+    let recommendation: 'STRONG BUY' | 'BUY' | 'HOLD' | 'SELL' | 'STRONG SELL' = 'HOLD';
+    let confidence = 0.5;
+    const positivePoints: string[] = [];
+    const negativePoints: string[] = [];
+    
+    // Fundamental analysis factors
+    if (overallScore > 7) {
+      positivePoints.push("Strong fundamental indicators");
+      confidence += 0.1;
+    } else if (overallScore > 5) {
+      positivePoints.push("Decent fundamental health");
+      confidence += 0.05;
+    } else if (overallScore < 4) {
+      negativePoints.push("Weak fundamental indicators");
+      confidence -= 0.1;
+    }
+    
+    if (fundamentalData.pe < 15 && fundamentalData.pe > 0) {
+      positivePoints.push(`Attractive P/E ratio of ${fundamentalData.pe}`);
+      confidence += 0.05;
+    } else if (fundamentalData.pe > 30) {
+      negativePoints.push(`High P/E ratio of ${fundamentalData.pe}`);
+      confidence -= 0.05;
+    }
+    
+    if (fundamentalData.debtToEquity < 0.5) {
+      positivePoints.push("Low debt-to-equity ratio");
+      confidence += 0.05;
+    } else if (fundamentalData.debtToEquity > 1.2) {
+      negativePoints.push("High debt-to-equity ratio");
+      confidence -= 0.05;
+    }
+    
+    if (fundamentalData.dividendYield > 0.04) {
+      positivePoints.push(`Strong dividend yield of ${(fundamentalData.dividendYield * 100).toFixed(2)}%`);
+      confidence += 0.05;
+    }
+    
+    // Technical analysis factors - safely check each calculation
+    if (priceChange > 10) {
+      positivePoints.push(`Strong recent uptrend (${priceChange.toFixed(2)}% in ${periodLength} days)`);
+      confidence += 0.1;
+    } else if (priceChange > 5) {
+      positivePoints.push(`Positive price momentum (${priceChange.toFixed(2)}% in ${periodLength} days)`);
+      confidence += 0.05;
+    } else if (priceChange < -10) {
+      negativePoints.push(`Sharp recent decline (${priceChange.toFixed(2)}% in ${periodLength} days)`);
+      confidence -= 0.1;
+    } else if (priceChange < -5) {
+      negativePoints.push(`Negative price action (${priceChange.toFixed(2)}% in ${periodLength} days)`);
+      confidence -= 0.05;
+    }
+    
+    if (rsi > 70) {
+      negativePoints.push(`Overbought conditions (RSI: ${rsi.toFixed(1)})`);
+      confidence -= 0.1;
+    } else if (rsi < 30) {
+      positivePoints.push(`Oversold conditions (RSI: ${rsi.toFixed(1)})`);
+      confidence += 0.1;
+    }
+    
+    // Determine final recommendation
+    const score = overallScore / 10 + (priceChange / 100) - (rsi > 70 ? 0.2 : 0) + (rsi < 30 ? 0.2 : 0);
+    
+    if (score > 0.8) recommendation = 'STRONG BUY';
+    else if (score > 0.3) recommendation = 'BUY';
+    else if (score < -0.8) recommendation = 'STRONG SELL';
+    else if (score < -0.3) recommendation = 'SELL';
+    else recommendation = 'HOLD';
+    
+    // Ensure confidence is between 0.3 and 0.9
+    confidence = Math.max(0.3, Math.min(0.9, confidence));
+    
+    // Generate summary
+    let summary = `Based on ${positivePoints.length} positive and ${negativePoints.length} negative factors, `;
+    summary += `we ${recommendation.toLowerCase()} this stock with ${(confidence * 100).toFixed(0)}% confidence.`;
+    
+    return {
+      recommendation,
+      confidence,
+      positivePoints,
+      negativePoints,
+      summary
+    };
+  } catch (error) {
+    console.error("Error in generateRecommendation:", error);
+    return {
+      recommendation: 'HOLD',
+      confidence: 0.5,
+      positivePoints: [],
+      negativePoints: ['Error during analysis'],
+      summary: 'An error occurred while analyzing the data.'
+    };
   }
-  
-  if (fundamentalData.debtToEquity < 0.5) {
-    positivePoints.push("Low debt-to-equity ratio");
-    confidence += 0.05;
-  } else if (fundamentalData.debtToEquity > 1.2) {
-    negativePoints.push("High debt-to-equity ratio");
-    confidence -= 0.05;
-  }
-  
-  if (fundamentalData.dividendYield > 0.04) {
-    positivePoints.push(`Strong dividend yield of ${(fundamentalData.dividendYield * 100).toFixed(2)}%`);
-    confidence += 0.05;
-  }
-  
-  // Technical analysis factors
-  if (priceChange > 10) {
-    positivePoints.push(`Strong recent uptrend (${priceChange.toFixed(2)}% in 20 days)`);
-    confidence += 0.1;
-  } else if (priceChange > 5) {
-    positivePoints.push(`Positive price momentum (${priceChange.toFixed(2)}% in 20 days)`);
-    confidence += 0.05;
-  } else if (priceChange < -10) {
-    negativePoints.push(`Sharp recent decline (${priceChange.toFixed(2)}% in 20 days)`);
-    confidence -= 0.1;
-  } else if (priceChange < -5) {
-    negativePoints.push(`Negative price action (${priceChange.toFixed(2)}% in 20 days)`);
-    confidence -= 0.05;
-  }
-  
-  if (rsi > 70) {
-    negativePoints.push(`Overbought conditions (RSI: ${rsi})`);
-    confidence -= 0.1;
-  } else if (rsi < 30) {
-    positivePoints.push(`Oversold conditions (RSI: ${rsi})`);
-    confidence += 0.1;
-  }
-  
-  // Determine final recommendation
-  const score = overallScore / 10 + (priceChange / 100) - (rsi > 70 ? 0.2 : 0) + (rsi < 30 ? 0.2 : 0);
-  
-  if (score > 0.8) recommendation = 'STRONG BUY';
-  else if (score > 0.3) recommendation = 'BUY';
-  else if (score < -0.8) recommendation = 'STRONG SELL';
-  else if (score < -0.3) recommendation = 'SELL';
-  else recommendation = 'HOLD';
-  
-  // Ensure confidence is between 0.3 and 0.9
-  confidence = Math.max(0.3, Math.min(0.9, confidence));
-  
-  // Generate summary
-  let summary = `Based on ${positivePoints.length} positive and ${negativePoints.length} negative factors, `;
-  summary += `we ${recommendation.toLowerCase()} this stock with ${(confidence * 100).toFixed(0)}% confidence.`;
-  
-  return {
-    recommendation,
-    confidence,
-    positivePoints,
-    negativePoints,
-    summary
-  };
 };

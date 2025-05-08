@@ -55,8 +55,45 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ stockData }) => {
   const lastDataPoint = stockData.data.slice(-1)[0];
   const previousDataPoint = stockData.data.length > 1 ? stockData.data.slice(-2)[0] : null;
   
-  // Generate recommendation
-  const recommendation = generateRecommendation(stockData.data, fundamentalData);
+  // Generate recommendation - safely wrap with try/catch to prevent crashes
+  let recommendation;
+  try {
+    recommendation = generateRecommendation(stockData.data, fundamentalData);
+  } catch (error) {
+    console.error("Error generating recommendation:", error);
+    recommendation = {
+      recommendation: 'HOLD',
+      confidence: 0.5,
+      positivePoints: ['Unable to generate detailed analysis'],
+      negativePoints: [],
+      summary: 'Analysis unavailable due to data issues.'
+    };
+  }
+  
+  // Safe number formatting utility
+  const formatNumber = (num?: number | null, decimals = 2): string => {
+    if (num === undefined || num === null || isNaN(num)) {
+      return 'N/A';
+    }
+    return num.toFixed(decimals);
+  };
+  
+  // Safe percentage calculation utility
+  const calculatePercentageChange = (current?: number | null, previous?: number | null): string => {
+    if (current === undefined || current === null || 
+        previous === undefined || previous === null || 
+        previous === 0) {
+      return '';
+    }
+    
+    try {
+      const change = Math.abs((current / previous - 1) * 100);
+      return isNaN(change) ? '' : formatNumber(change) + '%';
+    } catch (error) {
+      console.error("Error calculating percentage:", error);
+      return '';
+    }
+  };
   
   return (
     <div className="container mx-auto px-4 py-8">
@@ -68,16 +105,22 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ stockData }) => {
           <p className="text-gray-600">
             {lastDataPoint && (
               <>
-                Last Price: ${lastDataPoint.close.toFixed(2)} • 
+                Last Price: ${formatNumber(lastDataPoint.close)}
                 {previousDataPoint && (
-                  <span className={
-                    lastDataPoint.close > previousDataPoint.close 
-                      ? "text-market-success" 
-                      : "text-market-danger"
-                  }>
-                    {lastDataPoint.close > previousDataPoint.close ? "▲" : "▼"} 
-                    {Math.abs((lastDataPoint.close / previousDataPoint.close - 1) * 100).toFixed(2)}%
-                  </span>
+                  <>
+                    {' • '}
+                    <span className={
+                      (lastDataPoint.close !== undefined && previousDataPoint.close !== undefined && 
+                       lastDataPoint.close > previousDataPoint.close)
+                        ? "text-market-success" 
+                        : "text-market-danger"
+                    }>
+                      {(lastDataPoint.close !== undefined && previousDataPoint.close !== undefined) 
+                        ? (lastDataPoint.close > previousDataPoint.close ? "▲" : "▼")
+                        : ""} 
+                      {calculatePercentageChange(lastDataPoint.close, previousDataPoint.close)}
+                    </span>
+                  </>
                 )}
               </>
             )}
@@ -108,9 +151,11 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ stockData }) => {
         />
       </div>
       
-      <div className="mb-8">
-        <RecommendationCard {...recommendation} />
-      </div>
+      {recommendation && (
+        <div className="mb-8">
+          <RecommendationCard {...recommendation} />
+        </div>
+      )}
       
       <div className="mb-8">
         <Tabs defaultValue="technical">
