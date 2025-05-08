@@ -5,6 +5,7 @@ import { Upload, X, FileText, CheckCircle, FileIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { ensureValidData } from "@/utils/dataHelpers";
 
 interface UploadSectionProps {
   onFileUploaded: (data: any) => void;
@@ -94,7 +95,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUploaded }) => {
       }
       
       // Generate enhanced mock data based on data type
-      if (selectedDataType === 'market') {
+      if (selectedDataType === 'market' || fileType === 'csv' || fileType === 'xlsx' || fileType === 'xls' || fileType === 'json') {
         // Generate more realistic stock data with trends
         const startPrice = 100 + Math.random() * 100;
         let currentPrice = startPrice;
@@ -137,15 +138,23 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUploaded }) => {
           }
         };
       } else {
-        // Enhanced document analysis data with more realistic sentiment patterns
+        // For document analysis data including PDFs
         const sentimentTrend = Math.random() > 0.6 ? 'improving' : Math.random() > 0.5 ? 'declining' : 'stable';
         let currentSentiment = 0.4 + Math.random() * 0.3; // Start with 40-70% sentiment
         
+        // Generate document specific title
+        let docTitle = file.name.split('.')[0].replace(/[_-]/g, ' ');
+        // For PDF files, add indicator that it's a PDF analysis
+        if (fileType === 'pdf') {
+          docTitle = `${docTitle} PDF Report Analysis`;
+        }
+        
         mockData = {
-          stockName: file.name.split('.')[0].replace(/[_-]/g, ' '),
+          stockName: docTitle,
           ticker: file.name.split('.')[0].slice(0, 4).toUpperCase(),
           dataType: 'documentAnalysis',
           source: file.name,
+          fileType: fileType, // Store the file type for reference
           data: dates.slice(-10).map((date, i) => {
             // Apply sentiment trend
             if (sentimentTrend === 'improving') {
@@ -157,12 +166,17 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUploaded }) => {
               currentSentiment = Math.min(0.9, Math.max(0.3, currentSentiment));
             }
             
-            // Random list of potential keywords
+            // Add PDF specific keywords if it's a PDF file
             const allKeywords = [
               'growth', 'revenue', 'profit', 'loss', 'market', 'strategy',
               'investment', 'dividend', 'acquisition', 'debt', 'earnings',
               'forecast', 'competition', 'expansion', 'regulation', 'technology'
             ];
+            
+            // For PDF files, add some PDF-specific keywords
+            if (fileType === 'pdf') {
+              allKeywords.push('report', 'analysis', 'quarterly', 'annual', 'financial', 'statement');
+            }
             
             // Select 2-4 random keywords
             const keywordCount = 2 + Math.floor(Math.random() * 3);
@@ -173,7 +187,9 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUploaded }) => {
               date,
               sentiment: parseFloat(currentSentiment.toFixed(2)),
               confidence: parseFloat((0.7 + Math.random() * 0.25).toFixed(2)),
-              keywords
+              keywords,
+              // For charting purposes, we need a close value
+              close: parseFloat(currentSentiment.toFixed(2))
             };
           }),
           // Add mock fundamental data for document analysis
@@ -190,13 +206,18 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUploaded }) => {
         };
       }
       
+      // Ensure data is valid before passing it up
+      if (mockData && mockData.data) {
+        mockData.data = ensureValidData(mockData.data);
+      }
+      
       setIsUploading(false);
       setIsUploaded(true);
       
       // Pass the enhanced data to parent component and display success message
       onFileUploaded(mockData);
       toast.success(`Analysis of ${file.name} completed successfully`, {
-        description: "Insights and recommendations are now available below."
+        description: `${fileType?.toUpperCase()} analysis insights and recommendations are now available below.`
       });
       
     }, 800);
@@ -219,6 +240,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUploaded }) => {
   const getFileIcon = (fileType?: string) => {
     switch(fileType) {
       case 'pdf':
+        return <FileText className="h-8 w-8 text-rose-600 mr-3" />; // Red icon for PDF
       case 'doc':
       case 'docx':
       case 'txt':

@@ -17,6 +17,7 @@ export interface StockInfo {
   stockName: string;
   ticker: string;
   data: StockData[];
+  fileType?: string; // Added to track file type
 }
 
 // Safe number formatting utility
