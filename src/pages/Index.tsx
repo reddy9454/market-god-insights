@@ -1,15 +1,33 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import UploadSection from '@/components/dashboard/UploadSection';
 import AnalysisDashboard from '@/components/dashboard/AnalysisDashboard';
+import { toast } from "sonner";
 
 const Index = () => {
   const [stockData, setStockData] = useState<any | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   
   const handleFileUploaded = (data: any) => {
-    setStockData(data);
+    setIsAnalyzing(true);
+    
+    // Simulate a short delay before showing the analysis to improve UX
+    setTimeout(() => {
+      setStockData(data);
+      setIsAnalyzing(false);
+      toast.success("Analysis ready", {
+        description: "Scroll down to view detailed insights and recommendations"
+      });
+    }, 800);
   };
+
+  // Display welcome toast on first load
+  useEffect(() => {
+    toast("Welcome to MarketGod Insights", { 
+      description: "Upload your financial data for detailed analysis and recommendations."
+    });
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -56,8 +74,26 @@ const Index = () => {
               </div>
             </div>
           </div>
+        ) : isAnalyzing ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="animate-pulse flex space-x-4 items-center">
+              <div className="rounded-full bg-market-primary/20 h-12 w-12"></div>
+              <div className="h-4 bg-market-primary/20 rounded w-36"></div>
+            </div>
+            <p className="mt-4 text-lg text-gray-600">Analyzing your data...</p>
+          </div>
         ) : (
-          <AnalysisDashboard stockData={stockData} />
+          <>
+            <AnalysisDashboard stockData={stockData} />
+            <div className="my-8 text-center">
+              <button 
+                onClick={() => setStockData(null)}
+                className="text-market-primary hover:text-market-accent underline"
+              >
+                Upload a different file
+              </button>
+            </div>
+          </>
         )}
       </div>
       

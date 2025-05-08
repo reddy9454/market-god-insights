@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Upload, X, FileText, CheckCircle, FileIcon } from "lucide-react";
@@ -71,43 +70,82 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUploaded }) => {
   const processFile = (file: File) => {
     const fileType = file.name.split('.').pop()?.toLowerCase();
     
-    // Mock file processing - in a real app, you'd parse the file here based on its type
+    // Enhanced file processing with more detailed mock data
     setTimeout(() => {
-      // For demonstration purposes - different processing based on file type
       let mockData;
+      const currentDate = new Date();
+      let dates = [];
       
+      // Generate dates for the past 30 days
+      for (let i = 30; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(currentDate.getDate() - i);
+        dates.push(date.toISOString().split('T')[0]);
+      }
+      
+      // Generate enhanced mock data based on file type
       if (fileType === 'csv' || fileType === 'xlsx' || fileType === 'xls') {
+        // More detailed stock data with all OHLCV fields
         mockData = {
-          stockName: "Sample Stock",
-          ticker: "SMPL",
-          data: [
-            { date: '2023-01-01', close: 150.25 },
-            { date: '2023-01-02', close: 152.30 },
-            { date: '2023-01-03', close: 148.75 },
-            { date: '2023-01-04', close: 155.20 },
-            { date: '2023-01-05', close: 153.50 },
-          ]
+          stockName: file.name.split('.')[0].replace(/[_-]/g, ' '),
+          ticker: file.name.split('.')[0].slice(0, 4).toUpperCase(),
+          dataType: 'marketData',
+          data: dates.map((date, i) => {
+            const base = 150 + Math.sin(i / 5) * 10 + (i / 30) * 15;
+            const open = base - 2 + Math.random() * 4;
+            const close = base - 2 + Math.random() * 4;
+            const high = Math.max(open, close) + Math.random() * 2;
+            const low = Math.min(open, close) - Math.random() * 2;
+            const volume = Math.floor(500000 + Math.random() * 500000);
+            
+            return {
+              date,
+              open: parseFloat(open.toFixed(2)),
+              high: parseFloat(high.toFixed(2)),
+              low: parseFloat(low.toFixed(2)),
+              close: parseFloat(close.toFixed(2)),
+              volume
+            };
+          })
         };
       } else {
-        // For PDF, DOC, and other document formats
+        // Enhanced document analysis data with sentiment scores
         mockData = {
-          stockName: "Document Analysis",
-          ticker: "DOCU",
+          stockName: file.name.split('.')[0].replace(/[_-]/g, ' '),
+          ticker: file.name.split('.')[0].slice(0, 4).toUpperCase(),
+          dataType: 'documentAnalysis',
           source: file.name,
-          data: [
-            { date: '2023-01-01', sentiment: 0.75 },
-            { date: '2023-01-02', sentiment: 0.82 },
-            { date: '2023-01-03', sentiment: 0.65 },
-            { date: '2023-01-04', sentiment: 0.90 },
-            { date: '2023-01-05', sentiment: 0.78 },
-          ]
+          data: dates.slice(-7).map((date, i) => {
+            return {
+              date,
+              sentiment: parseFloat((0.6 + Math.random() * 0.4).toFixed(2)),
+              confidence: parseFloat((0.7 + Math.random() * 0.3).toFixed(2)),
+              keywords: ['growth', 'investment', 'profit', 'strategy', 'market'].slice(0, 3 + Math.floor(Math.random() * 3))
+            };
+          }),
+          // Add mock fundamental data for document analysis
+          fundamentalData: {
+            pe: parseFloat((15 + Math.random() * 10).toFixed(2)),
+            eps: parseFloat((2.5 + Math.random() * 2).toFixed(2)),
+            roe: parseFloat((0.1 + Math.random() * 0.1).toFixed(2)),
+            debtToEquity: parseFloat((0.5 + Math.random() * 0.5).toFixed(2)),
+            currentRatio: parseFloat((1.5 + Math.random() * 0.5).toFixed(2)),
+            quickRatio: parseFloat((1.0 + Math.random() * 0.5).toFixed(2)),
+            profitMargin: parseFloat((0.08 + Math.random() * 0.08).toFixed(2)),
+            dividendYield: parseFloat((0.01 + Math.random() * 0.04).toFixed(2))
+          }
         };
       }
       
       setIsUploading(false);
       setIsUploaded(true);
+      
+      // Pass the enhanced data to parent component and display success message
       onFileUploaded(mockData);
-      toast.success(`${getFileTypeLabel(fileType)} processed successfully`);
+      toast.success(`Analysis of ${file.name} completed successfully`, {
+        description: "Insights and recommendations are now available below."
+      });
+      
     }, 1000);
   };
 
@@ -147,7 +185,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUploaded }) => {
   return (
     <Card className="w-full bg-white shadow-sm border border-gray-200">
       <CardContent className="p-6">
-        <h2 className="text-xl font-bold text-market-primary mb-4">Upload Data</h2>
+        <h2 className="text-xl font-bold text-market-primary mb-4">Upload Data for Analysis</h2>
         
         <div
           onDragOver={handleDragOver}
@@ -198,7 +236,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUploaded }) => {
                 {isUploaded ? (
                   <div className="flex items-center">
                     <CheckCircle className="h-5 w-5 text-market-success mr-2" />
-                    <span className="text-market-success">Processed</span>
+                    <span className="text-market-success">Analysis Complete</span>
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -226,7 +264,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUploaded }) => {
                     className="h-2 w-full"
                     indicatorClassName="bg-market-accent"
                   />
-                  <p className="text-sm text-gray-500 mt-1">Uploading... {uploadProgress}%</p>
+                  <p className="text-sm text-gray-500 mt-1">Processing... {uploadProgress}%</p>
                 </div>
               )}
             </div>
