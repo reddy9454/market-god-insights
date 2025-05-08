@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import StockChart from '../common/StockChart';
 import RecommendationCard from '../common/RecommendationCard';
 import TechnicalAnalysis from '../analysis/TechnicalAnalysis';
 import FundamentalAnalysis from '../analysis/FundamentalAnalysis';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { generateRecommendation } from '@/utils/analysisUtils';
+import { generateRecommendation, ensureValidData } from '@/utils/analysisUtils';
 import { Button } from '@/components/ui/button';
 import { Save, Share, FileDown, AlertTriangle } from 'lucide-react';
 import { toast } from "sonner";
@@ -59,6 +58,9 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ stockData }) => {
     );
   }
 
+  // Ensure data has valid close values for charts and analysis
+  const validatedStockData = ensureValidData(stockData.data);
+  
   // Mock fundamental data if not provided (in a real app, this would come from an API or user input)
   const fundamentalData = stockData.fundamentalData || {
     pe: 18.5,
@@ -312,7 +314,7 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ stockData }) => {
       <div className="mb-8">
         {hasMarketData ? (
           <StockChart 
-            data={stockData.data}
+            data={validatedStockData}
             type="area"
             height={350}
           />
@@ -321,7 +323,7 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ stockData }) => {
             <CardContent className="p-6">
               <h3 className="text-xl font-bold mb-4">Document Sentiment Analysis</h3>
               <StockChart 
-                data={stockData.data.map(d => ({
+                data={validatedStockData.map(d => ({
                   date: d.date,
                   close: d.sentiment || 0
                 }))}
@@ -352,7 +354,7 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ stockData }) => {
           {hasMarketData && (
             <TabsContent value="technical" className="mt-6">
               <TechnicalAnalysis
-                stockData={stockData.data}
+                stockData={validatedStockData}
                 stockName={stockData.stockName}
                 ticker={stockData.ticker}
               />

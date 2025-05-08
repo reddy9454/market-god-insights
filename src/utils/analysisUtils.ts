@@ -6,8 +6,11 @@ export interface StockData {
   open?: number;
   high?: number;
   low?: number;
-  close: number;
+  close?: number; // Changed from required to optional
   volume?: number;
+  sentiment?: number; // Added to support sentiment data
+  confidence?: number; // Added to support confidence data
+  keywords?: string[]; // Added to support keywords
 }
 
 export interface StockInfo {
@@ -373,4 +376,26 @@ export const generateRecommendation = (
       summary: 'An error occurred while analyzing the data.'
     };
   }
+};
+
+// Add a safety utility to ensure data has close property when needed
+export const ensureValidData = (data: StockData[]): StockData[] => {
+  return data.map(item => {
+    // If the item doesn't have a close property but has a sentiment property,
+    // use the sentiment as the close value for chart display
+    if (item.close === undefined && item.sentiment !== undefined) {
+      return {
+        ...item,
+        close: item.sentiment
+      };
+    }
+    // Fallback value if neither close nor sentiment exists
+    if (item.close === undefined) {
+      return {
+        ...item,
+        close: 0
+      };
+    }
+    return item;
+  });
 };
