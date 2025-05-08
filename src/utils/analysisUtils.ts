@@ -1,238 +1,6 @@
-// Mock utility functions for stock analysis
-// In a real application, these would contain actual analysis logic
 
-export interface StockData {
-  date: string;
-  open?: number;
-  high?: number;
-  low?: number;
-  close?: number; // Changed from required to optional
-  volume?: number;
-  sentiment?: number; // Added to support sentiment data
-  confidence?: number; // Added to support confidence data
-  keywords?: string[]; // Added to support keywords
-}
-
-export interface StockInfo {
-  stockName: string;
-  ticker: string;
-  data: StockData[];
-}
-
-// Technical Analysis Utils
-export const calculateSMA = (data: StockData[], period: number): number[] => {
-  // Simple Moving Average calculation
-  const sma: number[] = [];
-  
-  if (!data || data.length < period) {
-    return sma;
-  }
-  
-  for (let i = period - 1; i < data.length; i++) {
-    let sum = 0;
-    let validPoints = 0;
-    
-    for (let j = 0; j < period; j++) {
-      if (data[i - j] && typeof data[i - j].close === 'number') {
-        sum += data[i - j].close;
-        validPoints++;
-      }
-    }
-    
-    if (validPoints > 0) {
-      sma.push(parseFloat((sum / validPoints).toFixed(2)));
-    }
-  }
-  
-  return sma;
-};
-
-export const calculateRSI = (data: StockData[], period: number = 14): number[] => {
-  // Relative Strength Index calculation (simplified for demo)
-  const rsi: number[] = [];
-  const changes: number[] = [];
-  
-  if (!data || data.length <= period) {
-    return rsi;
-  }
-  
-  // Calculate price changes
-  for (let i = 1; i < data.length; i++) {
-    if (data[i] && data[i-1] && 
-        typeof data[i].close === 'number' && 
-        typeof data[i-1].close === 'number') {
-      changes.push(data[i].close - data[i - 1].close);
-    } else {
-      changes.push(0); // Default for invalid data
-    }
-  }
-  
-  // Calculate RSI for each point after the period
-  for (let i = period; i <= changes.length; i++) {
-    const changesSlice = changes.slice(i - period, i);
-    const gains = changesSlice.filter(change => change > 0);
-    const losses = changesSlice.filter(change => change < 0).map(loss => Math.abs(loss));
-    
-    const avgGain = gains.reduce((sum, gain) => sum + gain, 0) / period;
-    const avgLoss = losses.reduce((sum, loss) => sum + loss, 0) / period;
-    
-    if (avgLoss === 0) {
-      rsi.push(100);
-    } else {
-      const rs = avgGain / avgLoss;
-      rsi.push(parseFloat((100 - (100 / (1 + rs))).toFixed(2)));
-    }
-  }
-  
-  return rsi;
-};
-
-export const calculateMACD = (data: StockData[]): {macd: number[], signal: number[], histogram: number[]} => {
-  // Moving Average Convergence Divergence (simplified for demo)
-  const closePrices = data.map(d => d.close);
-  
-  // Calculate EMAs
-  const ema12 = calculateEMA(closePrices, 12);
-  const ema26 = calculateEMA(closePrices, 26);
-  
-  // Calculate MACD Line
-  const macd: number[] = [];
-  for (let i = 0; i < ema12.length; i++) {
-    if (i >= ema26.length - ema12.length) {
-      macd.push(parseFloat((ema12[i] - ema26[i + (ema26.length - ema12.length)]).toFixed(2)));
-    }
-  }
-  
-  // Calculate Signal Line (9-period EMA of MACD Line)
-  const signal = calculateEMA(macd, 9);
-  
-  // Calculate Histogram
-  const histogram: number[] = [];
-  for (let i = 0; i < signal.length; i++) {
-    histogram.push(parseFloat((macd[i + (macd.length - signal.length)] - signal[i]).toFixed(2)));
-  }
-  
-  return { macd, signal, histogram };
-};
-
-export const calculateEMA = (data: number[], period: number): number[] => {
-  // Exponential Moving Average calculation
-  const ema: number[] = [];
-  const multiplier = 2 / (period + 1);
-  
-  // Start with SMA for the first EMA value
-  let sum = 0;
-  for (let i = 0; i < period; i++) {
-    sum += data[i];
-  }
-  ema.push(parseFloat((sum / period).toFixed(2)));
-  
-  // Calculate remaining EMAs
-  for (let i = period; i < data.length; i++) {
-    ema.push(parseFloat((data[i] * multiplier + ema[ema.length - 1] * (1 - multiplier)).toFixed(2)));
-  }
-  
-  return ema;
-};
-
-// Fundamental Analysis Utils
-export interface FundamentalData {
-  pe: number;
-  eps: number;
-  roe: number;
-  debtToEquity: number;
-  currentRatio: number;
-  quickRatio: number;
-  profitMargin: number;
-  dividendYield: number;
-}
-
-export const calculateFundamentalScores = (data: FundamentalData): {
-  valueScore: number;
-  growthScore: number;
-  stabilityScore: number;
-  overallScore: number;
-} => {
-  // These are simplified scoring mechanisms for demo purposes
-  // In a real app, you'd have more sophisticated analysis
-  
-  const valueScore = calculateValueScore(data);
-  const growthScore = calculateGrowthScore(data);
-  const stabilityScore = calculateStabilityScore(data);
-  
-  const overallScore = (valueScore + growthScore + stabilityScore) / 3;
-  
-  return {
-    valueScore: parseFloat(valueScore.toFixed(1)),
-    growthScore: parseFloat(growthScore.toFixed(1)),
-    stabilityScore: parseFloat(stabilityScore.toFixed(1)),
-    overallScore: parseFloat(overallScore.toFixed(1))
-  };
-};
-
-const calculateValueScore = (data: FundamentalData): number => {
-  // Sample value scoring (0-10 scale)
-  let score = 5; // Neutral starting point
-  
-  // PE ratio scoring (lower is better for value)
-  if (data.pe < 10) score += 2;
-  else if (data.pe < 15) score += 1;
-  else if (data.pe > 30) score -= 1;
-  else if (data.pe > 50) score -= 2;
-  
-  // EPS scoring (higher is better)
-  if (data.eps > 5) score += 1;
-  if (data.eps > 10) score += 0.5;
-  
-  // Dividend yield scoring
-  if (data.dividendYield > 0.05) score += 1.5;
-  else if (data.dividendYield > 0.03) score += 1;
-  else if (data.dividendYield > 0.01) score += 0.5;
-  
-  return Math.max(0, Math.min(10, score));
-};
-
-const calculateGrowthScore = (data: FundamentalData): number => {
-  // Sample growth scoring (0-10 scale)
-  let score = 5; // Neutral starting point
-  
-  // ROE scoring (higher is better for growth)
-  if (data.roe > 0.20) score += 2;
-  else if (data.roe > 0.15) score += 1.5;
-  else if (data.roe > 0.10) score += 1;
-  else if (data.roe < 0.05) score -= 1;
-  
-  // Profit margin scoring
-  if (data.profitMargin > 0.20) score += 2;
-  else if (data.profitMargin > 0.10) score += 1;
-  else if (data.profitMargin < 0.05) score -= 0.5;
-  else if (data.profitMargin < 0) score -= 1.5;
-  
-  return Math.max(0, Math.min(10, score));
-};
-
-const calculateStabilityScore = (data: FundamentalData): number => {
-  // Sample stability scoring (0-10 scale)
-  let score = 5; // Neutral starting point
-  
-  // Debt-to-Equity scoring (lower is better for stability)
-  if (data.debtToEquity < 0.3) score += 2;
-  else if (data.debtToEquity < 0.5) score += 1;
-  else if (data.debtToEquity > 1.0) score -= 1;
-  else if (data.debtToEquity > 1.5) score -= 2;
-  
-  // Current ratio scoring (higher is better for stability)
-  if (data.currentRatio > 2) score += 1.5;
-  else if (data.currentRatio > 1.5) score += 1;
-  else if (data.currentRatio < 1) score -= 1;
-  
-  // Quick ratio scoring
-  if (data.quickRatio > 1.5) score += 1.5;
-  else if (data.quickRatio > 1) score += 1;
-  else if (data.quickRatio < 0.7) score -= 1;
-  
-  return Math.max(0, Math.min(10, score));
-};
+import { StockData } from './dataHelpers';
+import { FundamentalData } from './fundamentalAnalysis';
 
 // Investment recommendation engine
 export const generateRecommendation = (
@@ -257,6 +25,10 @@ export const generateRecommendation = (
   }
 
   try {
+    // Import calculation functions from other modules
+    const { calculateRSI } = require('./technicalAnalysis');
+    const { calculateFundamentalScores } = require('./fundamentalAnalysis');
+    
     // Calculate scores
     const { overallScore } = calculateFundamentalScores(fundamentalData);
     
@@ -271,7 +43,7 @@ export const generateRecommendation = (
         typeof recentData[recentData.length-1]?.close === 'number' && 
         typeof recentData[0]?.close === 'number' && 
         recentData[0].close !== 0) {
-      priceChange = ((recentData[recentData.length-1].close / recentData[0].close) - 1) * 100;
+      priceChange = ((recentData[recentData.length-1].close! / recentData[0].close!) - 1) * 100;
     }
     
     // Safely calculate RSI
@@ -378,24 +150,101 @@ export const generateRecommendation = (
   }
 };
 
-// Add a safety utility to ensure data has close property when needed
-export const ensureValidData = (data: StockData[]): StockData[] => {
-  return data.map(item => {
-    // If the item doesn't have a close property but has a sentiment property,
-    // use the sentiment as the close value for chart display
-    if (item.close === undefined && item.sentiment !== undefined) {
+// Added: Advanced sentiment analysis utility for document analysis
+export const analyzeSentiment = (data: StockData[]): {
+  overallSentiment: number;
+  trend: 'improving' | 'declining' | 'stable';
+  keyInsights: string[];
+} => {
+  if (!data || data.length === 0 || !data.some(d => d.sentiment !== undefined)) {
+    return {
+      overallSentiment: 0.5,
+      trend: 'stable',
+      keyInsights: ['Insufficient sentiment data for analysis']
+    };
+  }
+
+  try {
+    // Filter valid sentiment data
+    const sentimentData = data
+      .filter(d => d.sentiment !== undefined)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    if (sentimentData.length === 0) {
       return {
-        ...item,
-        close: item.sentiment
+        overallSentiment: 0.5,
+        trend: 'stable',
+        keyInsights: ['No valid sentiment data found']
       };
     }
-    // Fallback value if neither close nor sentiment exists
-    if (item.close === undefined) {
-      return {
-        ...item,
-        close: 0
-      };
+    
+    // Calculate overall sentiment
+    const totalSentiment = sentimentData.reduce((sum, item) => sum + (item.sentiment || 0), 0);
+    const overallSentiment = totalSentiment / sentimentData.length;
+    
+    // Calculate trend
+    let trend: 'improving' | 'declining' | 'stable' = 'stable';
+    if (sentimentData.length >= 3) {
+      const firstHalf = sentimentData.slice(0, Math.floor(sentimentData.length / 2));
+      const secondHalf = sentimentData.slice(Math.floor(sentimentData.length / 2));
+      
+      const firstHalfAvg = firstHalf.reduce((sum, item) => sum + (item.sentiment || 0), 0) / firstHalf.length;
+      const secondHalfAvg = secondHalf.reduce((sum, item) => sum + (item.sentiment || 0), 0) / secondHalf.length;
+      
+      const change = secondHalfAvg - firstHalfAvg;
+      if (change > 0.1) trend = 'improving';
+      else if (change < -0.1) trend = 'declining';
     }
-    return item;
-  });
+    
+    // Extract key insights based on sentiment and keywords
+    const keyInsights: string[] = [];
+    
+    if (overallSentiment > 0.7) {
+      keyInsights.push('Document shows strongly positive sentiment');
+    } else if (overallSentiment > 0.55) {
+      keyInsights.push('Document shows moderately positive sentiment');
+    } else if (overallSentiment < 0.35) {
+      keyInsights.push('Document shows negative sentiment - exercise caution');
+    } else {
+      keyInsights.push('Document shows neutral sentiment');
+    }
+    
+    if (trend === 'improving') {
+      keyInsights.push('Sentiment is improving throughout the document');
+    } else if (trend === 'declining') {
+      keyInsights.push('Sentiment is declining throughout the document');
+    }
+    
+    // Analyze keywords if available
+    const keywordMap: Record<string, number> = {};
+    sentimentData.forEach(item => {
+      if (item.keywords) {
+        item.keywords.forEach(keyword => {
+          keywordMap[keyword] = (keywordMap[keyword] || 0) + 1;
+        });
+      }
+    });
+    
+    const topKeywords = Object.entries(keywordMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([keyword]) => keyword);
+      
+    if (topKeywords.length > 0) {
+      keyInsights.push(`Key topics: ${topKeywords.join(', ')}`);
+    }
+    
+    return {
+      overallSentiment,
+      trend,
+      keyInsights
+    };
+  } catch (error) {
+    console.error("Error in analyzeSentiment:", error);
+    return {
+      overallSentiment: 0.5,
+      trend: 'stable',
+      keyInsights: ['Error occurred during sentiment analysis']
+    };
+  }
 };

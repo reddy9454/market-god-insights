@@ -1,15 +1,18 @@
+
 import React, { useState, useEffect } from 'react';
 import StockChart from '../common/StockChart';
 import RecommendationCard from '../common/RecommendationCard';
 import TechnicalAnalysis from '../analysis/TechnicalAnalysis';
 import FundamentalAnalysis from '../analysis/FundamentalAnalysis';
+import InsightsDashboard from './InsightsDashboard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { generateRecommendation, ensureValidData } from '@/utils/analysisUtils';
 import { Button } from '@/components/ui/button';
 import { Save, Share, FileDown, AlertTriangle } from 'lucide-react';
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { generateRecommendation } from '@/utils/analysisUtils';
+import { ensureValidData, formatNumber, calculatePercentageChange } from '@/utils/dataHelpers';
+import { calculateBollingerBands } from '@/utils/technicalAnalysis';
 
 interface AnalysisDashboardProps {
   stockData: {
@@ -43,6 +46,8 @@ interface AnalysisDashboardProps {
 const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ stockData }) => {
   const [analysisComplete, setAnalysisComplete] = useState(false);
   const [insights, setInsights] = useState<string[]>([]);
+  const [chartType, setChartType] = useState<'area' | 'line' | 'candle' | 'bar'>('area');
+  const [showBollingerBands, setShowBollingerBands] = useState(false);
   
   // Make sure stockData and stockData.data exist and have elements
   if (!stockData || !stockData.data || stockData.data.length === 0) {
@@ -60,6 +65,9 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ stockData }) => {
 
   // Ensure data has valid close values for charts and analysis
   const validatedStockData = ensureValidData(stockData.data);
+  
+  // Calculate Bollinger Bands for technical overlay
+  const bollingerBands = calculateBollingerBands(validatedStockData);
   
   // Mock fundamental data if not provided (in a real app, this would come from an API or user input)
   const fundamentalData = stockData.fundamentalData || {
@@ -101,31 +109,6 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ stockData }) => {
       summary: 'Analysis unavailable due to data issues.'
     };
   }
-  
-  // Safe number formatting utility
-  const formatNumber = (num?: number | null, decimals = 2): string => {
-    if (num === undefined || num === null || isNaN(num)) {
-      return 'N/A';
-    }
-    return num.toFixed(decimals);
-  };
-  
-  // Safe percentage calculation utility
-  const calculatePercentageChange = (current?: number | null, previous?: number | null): string => {
-    if (current === undefined || current === null || 
-        previous === undefined || previous === null || 
-        previous === 0) {
-      return '';
-    }
-    
-    try {
-      const change = ((current / previous - 1) * 100);
-      return isNaN(change) ? '' : formatNumber(change) + '%';
-    } catch (error) {
-      console.error("Error calculating percentage:", error);
-      return '';
-    }
-  };
   
   // Generate insights based on the data
   useEffect(() => {
@@ -242,6 +225,18 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ stockData }) => {
     return () => clearTimeout(timer);
   }, [stockData, hasMarketData, fundamentalData]);
   
+  // Prepare chart overlay data for Bollinger Bands
+  const chartOverlay = showBollingerBands ? {
+    upperBand: bollingerBands.upper.map((value, index) => ({
+      date: validatedStockData[index + 19]?.date || '',  // 19 is because Bollinger starts after period (20)
+      value
+    })).filter(item => item.date),
+    lowerBand: bollingerBands.lower.map((value, index) => ({
+      date: validatedStockData[index + 19]?.date || '',
+      value
+    })).filter(item => item.date),
+  } : undefined;
+  
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
@@ -258,11 +253,11 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ stockData }) => {
                     <>
                       {' • '}
                       <span className={
-                        lastDataPoint.close > previousDataPoint.close
+                        lastDataPoint.close! > previousDataPoint.close!
                           ? "text-market-success" 
                           : "text-market-danger"
                       }>
-                        {lastDataPoint.close > previousDataPoint.close ? "▲" : "▼"} 
+                        {lastDataPoint.close! > previousDataPoint.close! ? "▲" : "▼"} 
                         {calculatePercentageChange(lastDataPoint.close, previousDataPoint.close)}
                       </span>
                     </>
@@ -281,42 +276,82 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ stockData }) => {
         </div>
         
         <div className="mt-4 md:mt-0 flex gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => toast.success("Analysis saved!")}>
             <Save className="h-4 w-4 mr-2" />
             Save
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => toast.success("Link copied to clipboard!")}>
             <Share className="h-4 w-4 mr-2" />
             Share
           </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={() => toast.success("Report exported!")}>
             <FileDown className="h-4 w-4 mr-2" />
             Export
           </Button>
         </div>
       </div>
       
-      {/* Auto-generated insights section */}
-      {analysisComplete && insights.length > 0 && (
-        <Alert className="mb-6 bg-market-accent/10 border-market-accent">
-          <AlertTriangle className="h-4 w-4 text-market-accent" />
-          <AlertTitle>Key Insights</AlertTitle>
-          <AlertDescription>
-            <ul className="mt-2 space-y-1 list-disc list-inside">
-              {insights.map((insight, index) => (
-                <li key={index}>{insight}</li>
-              ))}
-            </ul>
-          </AlertDescription>
-        </Alert>
-      )}
+      {/* Insights Dashboard */}
+      <div className="mb-6">
+        <InsightsDashboard
+          stockData={stockData}
+          insights={insights}
+        />
+      </div>
       
+      {/* Chart Controls */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        <div className="flex rounded-lg overflow-hidden border border-gray-200">
+          <Button 
+            variant={chartType === 'area' ? 'default' : 'ghost'} 
+            className="rounded-none" 
+            onClick={() => setChartType('area')}
+          >
+            Area
+          </Button>
+          <Button 
+            variant={chartType === 'line' ? 'default' : 'ghost'} 
+            className="rounded-none" 
+            onClick={() => setChartType('line')}
+          >
+            Line
+          </Button>
+          <Button 
+            variant={chartType === 'candle' ? 'default' : 'ghost'} 
+            className="rounded-none" 
+            onClick={() => setChartType('candle')}
+            disabled={!hasMarketData}
+          >
+            Candle
+          </Button>
+          <Button 
+            variant={chartType === 'bar' ? 'default' : 'ghost'} 
+            className="rounded-none" 
+            onClick={() => setChartType('bar')}
+          >
+            Bar
+          </Button>
+        </div>
+        
+        {hasMarketData && (
+          <Button 
+            variant={showBollingerBands ? 'default' : 'outline'} 
+            size="sm"
+            onClick={() => setShowBollingerBands(!showBollingerBands)}
+          >
+            Bollinger Bands
+          </Button>
+        )}
+      </div>
+      
+      {/* Chart Section */}
       <div className="mb-8">
         {hasMarketData ? (
           <StockChart 
             data={validatedStockData}
-            type="area"
+            type={chartType}
             height={350}
+            overlay={chartOverlay}
           />
         ) : (
           <Card>

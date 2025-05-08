@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Upload, X, FileText, CheckCircle, FileIcon } from "lucide-react";
@@ -15,6 +16,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUploaded }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploaded, setIsUploaded] = useState(false);
+  const [dataType, setDataType] = useState<'market' | 'document'>('market');
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -49,6 +51,13 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUploaded }) => {
       return;
     }
     
+    // Auto-detect file type
+    if (['csv', 'xlsx', 'xls'].includes(fileType || '')) {
+      setDataType('market');
+    } else {
+      setDataType('document');
+    }
+    
     setFile(file);
     setIsUploading(true);
     setUploadProgress(0);
@@ -64,11 +73,12 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUploaded }) => {
         }
         return newProgress;
       });
-    }, 300);
+    }, 200); // Faster upload simulation
   };
   
   const processFile = (file: File) => {
     const fileType = file.name.split('.').pop()?.toLowerCase();
+    const selectedDataType = dataType;
     
     // Enhanced file processing with more detailed mock data
     setTimeout(() => {
@@ -83,20 +93,28 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUploaded }) => {
         dates.push(date.toISOString().split('T')[0]);
       }
       
-      // Generate enhanced mock data based on file type
-      if (fileType === 'csv' || fileType === 'xlsx' || fileType === 'xls') {
-        // More detailed stock data with all OHLCV fields
+      // Generate enhanced mock data based on data type
+      if (selectedDataType === 'market') {
+        // Generate more realistic stock data with trends
+        const startPrice = 100 + Math.random() * 100;
+        let currentPrice = startPrice;
+        const trend = Math.random() > 0.5 ? 1 : -1; // Upward or downward trend
+        const volatility = 0.02 + Math.random() * 0.03; // Daily volatility between 2-5%
+        
         mockData = {
           stockName: file.name.split('.')[0].replace(/[_-]/g, ' '),
           ticker: file.name.split('.')[0].slice(0, 4).toUpperCase(),
           dataType: 'marketData',
           data: dates.map((date, i) => {
-            const base = 150 + Math.sin(i / 5) * 10 + (i / 30) * 15;
-            const open = base - 2 + Math.random() * 4;
-            const close = base - 2 + Math.random() * 4;
-            const high = Math.max(open, close) + Math.random() * 2;
-            const low = Math.min(open, close) - Math.random() * 2;
-            const volume = Math.floor(500000 + Math.random() * 500000);
+            // Apply trend and random daily change
+            const dailyChange = (trend * 0.003) + (Math.random() - 0.5) * volatility;
+            currentPrice = currentPrice * (1 + dailyChange);
+            
+            const open = currentPrice * (1 + (Math.random() - 0.5) * 0.01);
+            const close = currentPrice;
+            const high = Math.max(open, close) * (1 + Math.random() * 0.01);
+            const low = Math.min(open, close) * (1 - Math.random() * 0.01);
+            const volume = Math.floor(300000 + Math.random() * 700000 + (i % 5 === 0 ? 500000 : 0));
             
             return {
               date,
@@ -106,24 +124,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUploaded }) => {
               close: parseFloat(close.toFixed(2)),
               volume
             };
-          })
-        };
-      } else {
-        // Enhanced document analysis data with sentiment scores
-        mockData = {
-          stockName: file.name.split('.')[0].replace(/[_-]/g, ' '),
-          ticker: file.name.split('.')[0].slice(0, 4).toUpperCase(),
-          dataType: 'documentAnalysis',
-          source: file.name,
-          data: dates.slice(-7).map((date, i) => {
-            return {
-              date,
-              sentiment: parseFloat((0.6 + Math.random() * 0.4).toFixed(2)),
-              confidence: parseFloat((0.7 + Math.random() * 0.3).toFixed(2)),
-              keywords: ['growth', 'investment', 'profit', 'strategy', 'market'].slice(0, 3 + Math.floor(Math.random() * 3))
-            };
           }),
-          // Add mock fundamental data for document analysis
           fundamentalData: {
             pe: parseFloat((15 + Math.random() * 10).toFixed(2)),
             eps: parseFloat((2.5 + Math.random() * 2).toFixed(2)),
@@ -133,6 +134,58 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUploaded }) => {
             quickRatio: parseFloat((1.0 + Math.random() * 0.5).toFixed(2)),
             profitMargin: parseFloat((0.08 + Math.random() * 0.08).toFixed(2)),
             dividendYield: parseFloat((0.01 + Math.random() * 0.04).toFixed(2))
+          }
+        };
+      } else {
+        // Enhanced document analysis data with more realistic sentiment patterns
+        const sentimentTrend = Math.random() > 0.6 ? 'improving' : Math.random() > 0.5 ? 'declining' : 'stable';
+        let currentSentiment = 0.4 + Math.random() * 0.3; // Start with 40-70% sentiment
+        
+        mockData = {
+          stockName: file.name.split('.')[0].replace(/[_-]/g, ' '),
+          ticker: file.name.split('.')[0].slice(0, 4).toUpperCase(),
+          dataType: 'documentAnalysis',
+          source: file.name,
+          data: dates.slice(-10).map((date, i) => {
+            // Apply sentiment trend
+            if (sentimentTrend === 'improving') {
+              currentSentiment = Math.min(0.9, currentSentiment + 0.03 + Math.random() * 0.02);
+            } else if (sentimentTrend === 'declining') {
+              currentSentiment = Math.max(0.2, currentSentiment - 0.02 - Math.random() * 0.02);
+            } else {
+              currentSentiment = currentSentiment + (Math.random() - 0.5) * 0.05;
+              currentSentiment = Math.min(0.9, Math.max(0.3, currentSentiment));
+            }
+            
+            // Random list of potential keywords
+            const allKeywords = [
+              'growth', 'revenue', 'profit', 'loss', 'market', 'strategy',
+              'investment', 'dividend', 'acquisition', 'debt', 'earnings',
+              'forecast', 'competition', 'expansion', 'regulation', 'technology'
+            ];
+            
+            // Select 2-4 random keywords
+            const keywordCount = 2 + Math.floor(Math.random() * 3);
+            const shuffled = [...allKeywords].sort(() => 0.5 - Math.random());
+            const keywords = shuffled.slice(0, keywordCount);
+            
+            return {
+              date,
+              sentiment: parseFloat(currentSentiment.toFixed(2)),
+              confidence: parseFloat((0.7 + Math.random() * 0.25).toFixed(2)),
+              keywords
+            };
+          }),
+          // Add mock fundamental data for document analysis
+          fundamentalData: {
+            pe: parseFloat((17 + Math.random() * 8).toFixed(2)),
+            eps: parseFloat((3 + Math.random() * 1.5).toFixed(2)),
+            roe: parseFloat((0.12 + Math.random() * 0.08).toFixed(2)),
+            debtToEquity: parseFloat((0.6 + Math.random() * 0.4).toFixed(2)),
+            currentRatio: parseFloat((1.6 + Math.random() * 0.4).toFixed(2)),
+            quickRatio: parseFloat((1.1 + Math.random() * 0.4).toFixed(2)),
+            profitMargin: parseFloat((0.09 + Math.random() * 0.06).toFixed(2)),
+            dividendYield: parseFloat((0.02 + Math.random() * 0.03).toFixed(2))
           }
         };
       }
@@ -146,7 +199,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUploaded }) => {
         description: "Insights and recommendations are now available below."
       });
       
-    }, 1000);
+    }, 800);
   };
 
   const getFileTypeLabel = (fileType?: string): string => {
@@ -187,24 +240,44 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUploaded }) => {
       <CardContent className="p-6">
         <h2 className="text-xl font-bold text-market-primary mb-4">Upload Data for Analysis</h2>
         
-        <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-            isDragging 
-              ? "border-market-accent bg-market-accent/5" 
-              : isUploaded 
-                ? "border-market-success bg-market-success/5" 
-                : "border-gray-300 hover:border-market-accent"
-          }`}
-        >
-          {!file ? (
-            <>
+        {!file ? (
+          <>
+            <div className="mb-4">
+              <p className="text-sm text-gray-700 mb-2">Select data type:</p>
+              <div className="flex space-x-2">
+                <Button
+                  variant={dataType === 'market' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDataType('market')}
+                >
+                  Market Data
+                </Button>
+                <Button
+                  variant={dataType === 'document' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setDataType('document')}
+                >
+                  Document Analysis
+                </Button>
+              </div>
+            </div>
+            
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                isDragging 
+                  ? "border-market-accent bg-market-accent/5" 
+                  : "border-gray-300 hover:border-market-accent"
+              }`}
+            >
               <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
               <h3 className="text-lg font-medium mb-2">Drop your file here</h3>
               <p className="text-sm text-gray-500 mb-4">
-                Supported formats: CSV, Excel (.xlsx, .xls), PDF, Word (.doc, .docx), Text (.txt)
+                {dataType === 'market' 
+                  ? "Upload market data (CSV, Excel) for stock analysis" 
+                  : "Upload documents (PDF, Word, Text) for sentiment analysis"}
               </p>
               <Button 
                 variant="outline" 
@@ -216,67 +289,74 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onFileUploaded }) => {
                 id="fileInput"
                 type="file"
                 className="hidden"
-                accept=".csv,.xlsx,.xls,.pdf,.doc,.docx,.txt,.json"
+                accept={dataType === 'market' 
+                  ? ".csv,.xlsx,.xls,.json" 
+                  : ".pdf,.doc,.docx,.txt"}
                 onChange={handleFileInput}
               />
-            </>
-          ) : (
-            <div className="flex flex-col w-full">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  {getFileIcon(file.name.split('.').pop()?.toLowerCase())}
-                  <div className="text-left">
-                    <p className="font-medium">{file.name}</p>
-                    <p className="text-sm text-gray-500">
-                      {(file.size / 1024).toFixed(2)} KB
-                    </p>
-                  </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col w-full">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                {getFileIcon(file.name.split('.').pop()?.toLowerCase())}
+                <div className="text-left">
+                  <p className="font-medium">{file.name}</p>
+                  <p className="text-sm text-gray-500">
+                    {getFileTypeLabel(file.name.split('.').pop()?.toLowerCase())} • {(file.size / 1024).toFixed(2)} KB
+                  </p>
                 </div>
-                
-                {isUploaded ? (
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-market-success mr-2" />
-                    <span className="text-market-success">Analysis Complete</span>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={handleRemoveFile}
-                      className="ml-4"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
+              </div>
+              
+              {isUploaded ? (
+                <div className="flex items-center">
+                  <CheckCircle className="h-5 w-5 text-market-success mr-2" />
+                  <span className="text-market-success">Analysis Complete</span>
                   <Button 
                     variant="ghost" 
                     size="sm" 
                     onClick={handleRemoveFile}
+                    className="ml-4"
                   >
                     <X className="h-4 w-4" />
                   </Button>
-                )}
-              </div>
-              
-              {isUploading && (
-                <div className="mt-4 w-full">
-                  <Progress 
-                    value={uploadProgress} 
-                    className="h-2 w-full"
-                    indicatorClassName="bg-market-accent"
-                  />
-                  <p className="text-sm text-gray-500 mt-1">Processing... {uploadProgress}%</p>
                 </div>
+              ) : (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleRemoveFile}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               )}
             </div>
-          )}
-        </div>
+            
+            {isUploading && (
+              <div className="mt-4 w-full">
+                <Progress 
+                  value={uploadProgress} 
+                  className="h-2 w-full"
+                  indicatorClassName="bg-market-accent"
+                />
+                <p className="text-sm text-gray-500 mt-1">Processing... {uploadProgress}%</p>
+              </div>
+            )}
+          </div>
+        )}
         
-        <div className="mt-4 text-sm text-gray-500">
-          <p>For best results, ensure your files include:</p>
-          <ul className="list-disc list-inside mt-2">
-            <li>Stock price history in spreadsheets (CSV, Excel)</li>
-            <li>Annual reports or financial statements in documents (PDF, Word)</li>
-            <li>Analyst reports or research papers</li>
+        <div className="mt-6 text-sm text-gray-500">
+          <h4 className="font-medium text-gray-700 mb-1">File type recommendations:</h4>
+          <ul className="space-y-2">
+            <li className="flex items-center">
+              <span className="w-24 font-medium">Market Data</span>
+              <span>- CSV or Excel files with OHLCV data</span>
+            </li>
+            <li className="flex items-center">
+              <span className="w-24 font-medium">Documents</span> 
+              <span>- Annual reports, earnings calls, research papers (PDF/DOC)</span>
+            </li>
           </ul>
         </div>
       </CardContent>
