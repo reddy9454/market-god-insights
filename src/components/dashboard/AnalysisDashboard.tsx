@@ -25,6 +25,20 @@ interface AnalysisDashboardProps {
 }
 
 const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ stockData }) => {
+  // Make sure stockData and stockData.data exist and have elements
+  if (!stockData || !stockData.data || stockData.data.length === 0) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="p-6 bg-white rounded-lg shadow-sm border border-gray-200">
+          <h1 className="text-2xl font-bold text-market-primary mb-4">No Data Available</h1>
+          <p className="text-gray-600">
+            There is no stock data available for analysis. Please upload a different file.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Mock fundamental data (in a real app, this would come from an API or user input)
   const fundamentalData = {
     pe: 18.5,
@@ -37,6 +51,10 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ stockData }) => {
     dividendYield: 0.03
   };
   
+  // Ensure we have valid data points for comparison
+  const lastDataPoint = stockData.data.slice(-1)[0];
+  const previousDataPoint = stockData.data.length > 1 ? stockData.data.slice(-2)[0] : null;
+  
   // Generate recommendation
   const recommendation = generateRecommendation(stockData.data, fundamentalData);
   
@@ -48,17 +66,20 @@ const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ stockData }) => {
             {stockData.stockName} ({stockData.ticker})
           </h1>
           <p className="text-gray-600">
-            Last Price: ${stockData.data.slice(-1)[0].close.toFixed(2)} • 
-            {' '}
-            {stockData.data.length > 1 && (
-              <span className={
-                stockData.data.slice(-1)[0].close > stockData.data.slice(-2)[0].close 
-                  ? "text-market-success" 
-                  : "text-market-danger"
-              }>
-                {stockData.data.slice(-1)[0].close > stockData.data.slice(-2)[0].close ? "▲" : "▼"} 
-                {Math.abs((stockData.data.slice(-1)[0].close / stockData.data.slice(-2)[0].close - 1) * 100).toFixed(2)}%
-              </span>
+            {lastDataPoint && (
+              <>
+                Last Price: ${lastDataPoint.close.toFixed(2)} • 
+                {previousDataPoint && (
+                  <span className={
+                    lastDataPoint.close > previousDataPoint.close 
+                      ? "text-market-success" 
+                      : "text-market-danger"
+                  }>
+                    {lastDataPoint.close > previousDataPoint.close ? "▲" : "▼"} 
+                    {Math.abs((lastDataPoint.close / previousDataPoint.close - 1) * 100).toFixed(2)}%
+                  </span>
+                )}
+              </>
             )}
           </p>
         </div>
